@@ -1,14 +1,12 @@
-import os
-import cv2
-import numpy as np
-import base64
-import uuid
-from flask import Flask, request, redirect, url_for, session, render_template
-from gtts import gTTS
 import easyocr
+import time
+import os
+from flask import Flask, render_template, request, url_for, redirect, session
+from werkzeug.utils import secure_filename
+from gtts import gTTS
 
 app = Flask(__name__)
-app.secret_key = 'secret'
+app.secret_key = 'your_secret_key_here'
 
 UPLOAD_FOLDER = 'static/uploads'
 AUDIO_FOLDER = 'static/audio'
@@ -20,65 +18,71 @@ def index():
     return render_template('index.html',
                            image_path=session.pop('image_path', None),
                            ocr_text=session.pop('ocr_text', None),
-                           audio_path=session.pop('audio_path', None))
+                           audio_path=session.pop('audio_path', None),
+                           word_count=session.pop('word_count', None),
+                           average_confidence=session.pop('average_confidence', None),
+                           ocr_time=session.pop('ocr_time', None))
 
-@app.route('/detect_paper', methods=['POST'])
-def detect_paper():
-    data = request.get_json()
-    img_data = data['image'].split(',')[1]
-    img_bytes = base64.b64decode(img_data)
-    filename = f"{uuid.uuid4().hex}.png"
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
+@app.route('/ocr', methods=['POST'])
+def ocr():
+    import time
+    if 'image' not in request.files:
+        return "No file part"
+    
+    file = request.files['image']
+    if file.filename == '':
+        return "No selected file"
+    
+    if file:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
 
-    with open(filepath, 'wb') as f:
-        f.write(img_bytes)
+        # Mulai waktu OCR
+        start_time = time.time()
 
-    # Baca gambar pakai OpenCV
-    img = cv2.imread(filepath)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    edged = cv2.Canny(blur, 75, 200)
+        # Proses OCR (baca teks saja tanpa detail)
+        reader = easyocr.Reader(['id', 'en'])
+        result = reader.readtext(filepath, detail=1)  # gunakan detail=1 agar bisa ambil confidence
+        end_time = time.time()
 
-    # Cari kontur
-    contours, _ = cv2.findContours(edged.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)[:5]
+        # Ambil hanya teks dan confidence
+        extracted_text_list = []
+        confidences = []
 
-    # Cari kontur terbesar berbentuk persegi
-    screenCnt = None
-    for c in contours:
-        peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
-        if len(approx) == 4:
-            screenCnt = approx
-            break
+        for _, text, conf in result:
+            if text.strip():
+                extracted_text_list.append(text.strip())
+                confidences.append(conf)
 
-    if screenCnt is not None:
-        cv2.drawContours(img, [screenCnt], -1, (0, 255, 0), 2)
+        # Gabungkan semua teks
+        extracted_text = '\n'.join(extracted_text_list)
 
-    # Simpan hasil deteksi
-    detected_filename = f"detected_{filename}"
-    detected_path = os.path.join(UPLOAD_FOLDER, detected_filename)
-    cv2.imwrite(detected_path, img)
+        # Hitung rata-rata confidence dan jumlah kata
+        average_conf = round(sum(confidences) / len(confidences) * 100, 2) if confidences else 0
+        word_count = len(extracted_text.split())
 
-    # OCR (opsional)
-    reader = easyocr.Reader(['id', 'en'])
-    result = reader.readtext(detected_path, detail=0)
-    extracted_text = '\n'.join(result)
+        # Proses TTS jika ada teks
+        audio_path = None
+        if extracted_text.strip():
+            tts = gTTS(text=extracted_text, lang='id')
+            audio_filename = filename.rsplit('.', 1)[0] + '.mp3'
+            audio_path_fs = os.path.join(AUDIO_FOLDER, audio_filename)
+            tts.save(audio_path_fs)
+            audio_path = f'/static/audio/{audio_filename}'
 
-    # TTS
-    audio_path = None
-    if extracted_text:
-        tts = gTTS(text=extracted_text, lang='id')
-        audio_filename = filename.rsplit('.', 1)[0] + '.mp3'
-        audio_path_fs = os.path.join(AUDIO_FOLDER, audio_filename)
-        tts.save(audio_path_fs)
-        audio_path = f'/static/audio/{audio_filename}'
+        # Simpan ke session
+        session['ocr_text'] = extracted_text
+        session['image_path'] = f'/static/uploads/{filename}'
+        session['audio_path'] = audio_path
+        session['word_count'] = word_count
+        session['average_confidence'] = average_conf
+        session['ocr_time'] = round(end_time - start_time, 2)
 
-    session['image_path'] = f'/static/uploads/{detected_filename}'
-    session['ocr_text'] = extracted_text
-    session['audio_path'] = audio_path
+        return redirect(url_for('index') + '#coba-sekarang')
 
-    return redirect(url_for('index') + '#coba-sekarang')
+    return "Something went wrong"
+
 
 if __name__ == '__main__':
     app.run(debug=True)
