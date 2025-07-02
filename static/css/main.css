@@ -44,6 +44,8 @@
   --surface-color: #ffffff;
 }
 
+
+
 .dark-background {
   --background-color: #060606;
   --default-color: #ffffff;
@@ -1400,9 +1402,68 @@ section,
   background: color-mix(in srgb, var(--accent-color), transparent 20%);
 }
 
-/*--------------------------------------------------------------
-# Starter Section Section
---------------------------------------------------------------*/
-.starter-section {
-  /* Add your styles here */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.border-dashed {
+  border-style: dashed !important;
+}
+
+/* Placeholder untuk gambar */
+.placeholder-image {
+  width: 100%;
+  height: 200px;
+  background-color: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+}
+
+/* Efek hover pada pilihan */
+.card:hover {
+  background-color: #f8f9fa;
+  cursor: pointer;
+}
+
+/* Styling untuk preview gambar */
+#preview-image {
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  padding: 5px;
+}
+
+.upload-option {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.upload-option:hover {
+  transform: scale(1.05);
+}
+
+.upload-box {
+  width: 250px;
+  height: 250px;
+  border: 2px dashed #ccc;
+  background-color: #f4f4f4;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+#preview-image {
+  object-fit: cover;
 }

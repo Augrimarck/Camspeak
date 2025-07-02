@@ -177,4 +177,124 @@
   window.addEventListener('load', navmenuScrollspy);
   document.addEventListener('scroll', navmenuScrollspy);
 
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  document.addEventListener("DOMContentLoaded", function () {
+    const fileInput = document.getElementById("file-upload");
+    const previewImage = document.getElementById("preview-image");
+    const submitBtn = document.getElementById("submit-btn");
+
+    // Modal Upload (jika kamu pakai)
+    const uploadModal = document.getElementById("uploadModal");
+    if (uploadModal) {
+        const modal = new bootstrap.Modal(uploadModal);
+
+        // Klik area upload -> tampilkan modal
+        const uploadArea = document.getElementById("uploadArea");
+        if (uploadArea) {
+            uploadArea.addEventListener("click", () => modal.show());
+        }
+
+        // Tutup modal dengan baik
+        uploadModal.addEventListener("hidden.bs.modal", () => {
+            document.body.classList.remove("modal-open");
+            let backdrop = document.querySelector(".modal-backdrop");
+            if (backdrop) backdrop.remove();
+        });
+    }
+
+    // Pilih "Ambil Gambar" = buka kamera
+    const cameraOption = document.getElementById("camera-option");
+    if (cameraOption) {
+        cameraOption.addEventListener("click", function () {
+            fileInput.setAttribute("capture", "environment");
+            fileInput.click();
+        });
+    }
+
+    // Pilih "Upload Gambar" = buka galeri/file explorer
+    const uploadOption = document.getElementById("upload-option");
+    if (uploadOption) {
+        uploadOption.addEventListener("click", function () {
+            fileInput.removeAttribute("capture");
+            fileInput.click();
+        });
+    }
+
+    // Preview gambar setelah pilih
+    fileInput.addEventListener("change", function () {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                previewImage.src = e.target.result;
+                previewImage.classList.remove("d-none");
+            };
+            reader.readAsDataURL(file);
+            submitBtn.disabled = false;
+        } else {
+            previewImage.classList.add("d-none");
+            submitBtn.disabled = true;
+        }
+    });
+});
+
+// Auto-scroll ke section jika ada anchor
+window.addEventListener("load", function () {
+    if (window.location.hash === '#coba-sekarang') {
+        const section = document.getElementById('coba-sekarang');
+        if (section) {
+            section.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+});
+  
+// document.addEventListener('DOMContentLoaded', function(){
+//   const cameraOption = document.getElementById('camera-option');
+//   const modal = new bootstrap.Modal(document.getElementById('cameraModal'));
+//   const video = document.getElementById('video');
+//   const captureBtn = document.getElementById('capture-btn');
+//   let stream;
+
+//   cameraOption.addEventListener('click', async function(){
+//     modal.show();
+//     stream = await navigator.mediaDevices.getUserMedia({ video: true });
+//     video.srcObject = stream;
+//   });
+
+//   captureBtn.addEventListener('click', async function(){
+//     const canvas = document.createElement('canvas');
+//     canvas.width = video.videoWidth;
+//     canvas.height = video.videoHeight;
+//     canvas.getContext('2d').drawImage(video, 0, 0);
+
+//     // Stop kamera
+//     stream.getTracks().forEach(track => track.stop());
+
+//     // Kirim ke server
+//     const imageData = canvas.toDataURL('image/png');
+//     fetch('/detect_paper', {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({ image: imageData })
+//     }).then(response => {
+//       if (response.redirected) window.location.href = response.url;
+//     });
+//   });
+// });
+
 })();
