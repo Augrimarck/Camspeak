@@ -1467,3 +1467,25 @@ section,
 #preview-image {
   object-fit: cover;
 }
+
+
+/* ==== CSS ==== */
+.upload-option {
+  cursor: pointer;
+  width: 150px;
+}
+.upload-box {
+  width: 100px;
+  height: 100px;
+  border: 2px dashed #0d6efd;
+  border-radius: 12px;
+  margin: 0 auto;
+  transition: 0.3s;
+}
+.upload-option:hover .upload-box {
+  background: #e9f3ff;
+}
+#camera-stream, #camera-canvas {
+  max-height: 400px;
+  object-fit: cover;
+}

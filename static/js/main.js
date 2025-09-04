@@ -190,111 +190,136 @@
   
   
   
-  
-  
-  
   document.addEventListener("DOMContentLoaded", function () {
+    // === Elemen umum ===
     const fileInput = document.getElementById("file-upload");
     const previewImage = document.getElementById("preview-image");
+    const pdfInfo = document.getElementById("pdf-info");
     const submitBtn = document.getElementById("submit-btn");
+    const form = document.getElementById("upload-form");
+    const inputOption = document.getElementById("input-option");
 
-    // Modal Upload (jika kamu pakai)
-    const uploadModal = document.getElementById("uploadModal");
-    if (uploadModal) {
-        const modal = new bootstrap.Modal(uploadModal);
-
-        // Klik area upload -> tampilkan modal
-        const uploadArea = document.getElementById("uploadArea");
-        if (uploadArea) {
-            uploadArea.addEventListener("click", () => modal.show());
-        }
-
-        // Tutup modal dengan baik
-        uploadModal.addEventListener("hidden.bs.modal", () => {
-            document.body.classList.remove("modal-open");
-            let backdrop = document.querySelector(".modal-backdrop");
-            if (backdrop) backdrop.remove();
-        });
-    }
-
-    // Pilih "Ambil Gambar" = buka kamera
-    const cameraOption = document.getElementById("camera-option");
-    if (cameraOption) {
-        cameraOption.addEventListener("click", function () {
-            fileInput.setAttribute("capture", "environment");
-            fileInput.click();
-        });
-    }
-
-    // Pilih "Upload Gambar" = buka galeri/file explorer
+    // === Opsi Upload File (galeri/file explorer) ===
     const uploadOption = document.getElementById("upload-option");
     if (uploadOption) {
         uploadOption.addEventListener("click", function () {
-            fileInput.removeAttribute("capture");
-            fileInput.click();
+            fileInput.removeAttribute("capture"); // biar gak otomatis buka kamera di HP
+            fileInput.click(); // buka file explorer
         });
     }
 
-    // Preview gambar setelah pilih
+    // === Preview file gambar/PDF ===
     fileInput.addEventListener("change", function () {
         const file = this.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                previewImage.src = e.target.result;
-                previewImage.classList.remove("d-none");
-            };
-            reader.readAsDataURL(file);
+            const fileType = file.type;
+            if (fileType.startsWith("image/")) {
+                // Kalau gambar
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    previewImage.src = e.target.result;
+                    previewImage.classList.remove("d-none");
+                };
+                reader.readAsDataURL(file);
+                pdfInfo.textContent = "";
+            } else if (fileType === "application/pdf") {
+                // Kalau PDF
+                previewImage.classList.add("d-none");
+                previewImage.src = "#";
+                pdfInfo.textContent = `📄 File PDF terpilih: ${file.name}`;
+            }
             submitBtn.disabled = false;
         } else {
             previewImage.classList.add("d-none");
+            previewImage.src = "#";
+            pdfInfo.textContent = "";
             submitBtn.disabled = true;
         }
     });
-});
 
-// Auto-scroll ke section jika ada anchor
-window.addEventListener("load", function () {
+    // === Tentukan action form sesuai pilihan input ===
+    form.addEventListener("submit", function (e) {
+        if (inputOption.value === "poster") {
+            form.action = "/poster";
+        } else if (inputOption.value === "buku") {
+            form.action = "/buku";
+        } else {
+            e.preventDefault();
+            alert("Pilih jenis input terlebih dahulu!");
+        }
+    });
+
+    // === Auto-scroll ke section jika ada anchor ===
     if (window.location.hash === '#coba-sekarang') {
         const section = document.getElementById('coba-sekarang');
         if (section) {
             section.scrollIntoView({ behavior: 'smooth' });
         }
     }
+
+    // === Kamera ===
+    const cameraOption = document.getElementById("camera-option");
+    const cameraModal = new bootstrap.Modal(document.getElementById("cameraModal"));
+    const video = document.getElementById("camera-stream");
+    const canvas = document.getElementById("camera-canvas");
+    const captureBtn = document.getElementById("capture-btn");
+    const hiddenInput = document.getElementById("camera-image"); // hidden input untuk simpan data foto
+
+    let stream = null;
+
+    // Klik tombol "Ambil Gambar" -> buka modal kamera
+    cameraOption.addEventListener("click", async () => {
+        cameraModal.show();
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            video.classList.remove("d-none");
+            canvas.classList.add("d-none");
+        } catch (err) {
+            alert("Tidak bisa mengakses kamera: " + err);
+        }
+    });
+
+    // Tombol "Ambil Foto"
+    captureBtn.addEventListener("click", () => {
+        const ctx = canvas.getContext("2d");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Tampilkan hasil foto di modal
+        video.classList.add("d-none");
+        canvas.classList.remove("d-none");
+
+        // Ambil hasil sebagai dataURL
+        const dataURL = canvas.toDataURL("image/png");
+
+        // ✅ Tampilkan di preview luar modal
+        previewImage.src = dataURL;
+        previewImage.classList.remove("d-none");
+
+        // ✅ Simpan ke hidden input (biar bisa dikirim ke server)
+        hiddenInput.value = dataURL;
+
+        // ✅ Buat file blob supaya bisa ikut dikirim lewat <form> (fallback)
+        fetch(dataURL)
+            .then(res => res.blob())
+            .then(blob => {
+                const file = new File([blob], "camera-capture.png", { type: "image/png" });
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+
+                submitBtn.disabled = false; // aktifkan submit
+            });
+    });
+
+    // Saat modal ditutup -> hentikan kamera
+    document.getElementById("cameraModal").addEventListener("hidden.bs.modal", () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    });
 });
-  
-// document.addEventListener('DOMContentLoaded', function(){
-//   const cameraOption = document.getElementById('camera-option');
-//   const modal = new bootstrap.Modal(document.getElementById('cameraModal'));
-//   const video = document.getElementById('video');
-//   const captureBtn = document.getElementById('capture-btn');
-//   let stream;
-
-//   cameraOption.addEventListener('click', async function(){
-//     modal.show();
-//     stream = await navigator.mediaDevices.getUserMedia({ video: true });
-//     video.srcObject = stream;
-//   });
-
-//   captureBtn.addEventListener('click', async function(){
-//     const canvas = document.createElement('canvas');
-//     canvas.width = video.videoWidth;
-//     canvas.height = video.videoHeight;
-//     canvas.getContext('2d').drawImage(video, 0, 0);
-
-//     // Stop kamera
-//     stream.getTracks().forEach(track => track.stop());
-
-//     // Kirim ke server
-//     const imageData = canvas.toDataURL('image/png');
-//     fetch('/detect_paper', {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' },
-//       body: JSON.stringify({ image: imageData })
-//     }).then(response => {
-//       if (response.redirected) window.location.href = response.url;
-//     });
-//   });
-// });
 
 })();

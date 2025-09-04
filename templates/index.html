@@ -88,9 +88,20 @@
             <h2 class="text-center text-alert fw-bold">Camspeak</h2>
 
             <!-- Form Upload Gambar -->
-            <form action="/ocr" method="POST" enctype="multipart/form-data">
-              <div class="text-center">
-                <input type="file" name="image" id="file-upload" class="d-none" accept="image/*" required>
+            <form id="upload-form" method="POST" enctype="multipart/form-data">
+              <!-- Pilihan Jenis Input -->
+              <div class="mt-3 text-center">
+                <label for="input-option" class="fw-bold">Pilih Jenis Input:</label>
+                <select name="input_option" id="input-option" class="form-select w-50 mx-auto" required>
+                  <option value="" disabled selected>-- Pilih Jenis --</option>
+                  <option value="buku">Buku</option>
+                  <option value="poster">Poster</option>
+                </select>
+              </div>
+
+              <div class="text-center mt-4">
+                <!-- Hanya 1 input file -->
+                <input type="file" name="file" id="file-upload" class="d-none" accept="image/*,.pdf" required>
 
                 <div class="d-flex justify-content-center gap-5 flex-wrap">
                   <!-- Ambil Gambar -->
@@ -98,28 +109,54 @@
                     <div class="upload-box"></div>
                     <p class="fw-bold mt-2">Ambil Gambar</p>
                   </div>
-
-                  <!-- Upload Gambar -->
+                  <!-- Upload File -->
                   <div class="upload-option text-center" id="upload-option">
                     <div class="upload-box">
                       <img src="{{ url_for('static', filename='img/favicon.png') }}" alt="Upload Icon"
                         style="width: 50px; height: 50px; object-fit: contain; margin-top: 45px;" />
                     </div>
-                    <p class="fw-bold mt-2">Upload Gambar</p>
+                    <p class="fw-bold mt-2">Upload File</p>
+                  </div>
+
+                  <!-- 🔽 Tambahkan hidden input di sini -->
+                  <input type="hidden" name="camera_image" id="camera-image">
+                  <!-- Hidden input ini dipakai untuk menampung hasil foto dari kamera -->
+                </div>
+
+                <!-- Modal Kamera -->
+                <div class="modal fade" id="cameraModal" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title">Ambil Gambar</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                      </div>
+                      <div class="modal-body text-center">
+                        <!-- Video live kamera -->
+                        <video id="camera-stream" autoplay playsinline class="w-100 rounded"></video>
+                        <!-- Preview foto setelah diambil -->
+                        <canvas id="camera-canvas" class="d-none w-100 rounded"></canvas>
+                      </div>
+                      <div class="modal-footer d-flex justify-content-between">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kembali</button>
+                        <button type="button" class="btn btn-success" id="capture-btn">📸 Ambil Foto</button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <!-- Preview gambar hanya di bawah -->
+              <!-- Preview file -->
               <div class="text-center mt-3">
                 <h6 class="text-alert fw-bold">File Yang Terupload</h6>
                 <img id="preview-image" src="#" alt="Preview" class="img-fluid d-none mt-2" style="max-height: 300px;" />
+                <p id="pdf-info" class="mt-2"></p>
               </div>
 
               <!-- Tombol Submit -->
               <div class="text-center mt-4">
                 <button type="submit" class="btn btn-primary px-4 py-2" id="submit-btn" disabled>
-                  Lakukan OCR
+                  Jalankan
                 </button>
               </div>
             </form>
@@ -138,11 +175,11 @@
               </div>
             {% endif %}
             {% if word_count and average_confidence %}
-                <div class="mt-2">
-                    <p><strong>Jumlah Kata:</strong> {{ word_count }}</p>
-                    <p><strong>Confidence Rata-rata:</strong> {{ average_confidence }}%</p>
-                    <p><strong>Waktu Komputasi:</strong> {{ ocr_time }} detik</p>
-                </div>
+              <div class="mt-2">
+                <p><strong>Jumlah Kata:</strong> {{ word_count }}</p>
+                <p><strong>Confidence Rata-rata:</strong> {{ average_confidence }}%</p>
+                <p><strong>Waktu Komputasi:</strong> {{ ocr_time }} detik</p>
+              </div>
             {% endif %}
 
             {% if audio_path %}
@@ -159,7 +196,6 @@
         </div>
       </div>
     </section>
-
 
     <!-- About Section -->
     <section id="about" class="about section">
