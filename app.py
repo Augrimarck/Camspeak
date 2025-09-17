@@ -257,4 +257,9 @@ def index():
 
 # ========= RUN =========
 if __name__ == '__main__':
-    app.run(debug=True)
+    # biar bisa diakses dari device lain dalam 1 jaringan
+    app.run(
+        host="0.0.0.0",   # mendengar semua IP (bukan cuma localhost)
+        port=5000,        # port bisa diganti kalau perlu
+        debug=True
+    )

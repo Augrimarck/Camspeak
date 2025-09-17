@@ -1,0 +1,8 @@
+authenticator app Code
+QVSTBE23PIVE3LJQITKK6AUAYDYPCDJ3
+
+Auth Code
+32HKfamPHNMsoFbne6qpo2GdwJl_4D2V1fvma3PLBzXDNJo3F
+
+Syntax Activation
+ngrok http 5000
