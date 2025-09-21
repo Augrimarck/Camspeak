@@ -255,6 +255,8 @@ def index():
         ocr_time=session.pop("ocr_time", None)
     )
 
+
+
 # ========= RUN =========
 if __name__ == '__main__':
     # biar bisa diakses dari device lain dalam 1 jaringan
