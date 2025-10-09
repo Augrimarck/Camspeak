@@ -133,43 +133,89 @@
 
               <!-- Modal Kamera -->
               <div class="modal fade" id="cameraModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
                   <div class="modal-content camera-modal">
-                    <div class="modal-header-custom">
+                    <!-- Header -->
+                    <div class="modal-header-custom d-flex justify-content-between align-items-center">
+                      <!-- Tombol Flash -->
+                      <button type="button" class="btn-flash" id="flash-btn">
+                        <img id="flash-icon" src="static/img/CamSpeak/Flash Off.png" alt="Flash" style="width:20px; height:20px;">
+                        <span class="btn-label">Flash</span>
+                      </button>
+                    
+                      <!-- Judul -->
                       <h5 class="modal-title mx-auto">Ambil Gambar</h5>
+
+                      <!-- Tombol Close -->
                       <button type="button" class="btn-close-custom" data-bs-dismiss="modal">
                         <img src="static/img/CamSpeak/Cancel.png" alt="Close" style="width:20px; height:20px;">
+                        <span class="btn-label">Tutup</span>
                       </button>
                     </div>
+
+                    <!-- Body -->
                     <div class="modal-body-custom">
                       <!-- Video kamera -->
                       <video id="camera-stream" autoplay playsinline></video>
                       <!-- Canvas untuk preview -->
                       <canvas id="camera-canvas" class="d-none"></canvas>
                     </div>
-                    <div class="modal-footer-custom">
+
+                    <!-- Footer -->
+                    <div class="modal-footer-custom d-flex justify-content-around">
                       <button type="button" class="circle-btn" data-bs-dismiss="modal">
-                        <img src="static/img/CamSpeak/Back.png" alt="Close" style="width:20px; height:20px;">
+                        <img src="static/img/CamSpeak/Back.png" alt="Back" style="width:20px; height:20px;">
+                        <span class="btn-label">Kembali</span>
                       </button>
+
                       <button type="button" class="circle-btn" id="capture-btn">
-                        <img src="static/img/CamSpeak/Camera.png" alt="Close" style="width:20px; height:20px;">
+                        <img src="static/img/CamSpeak/Camera.png" alt="Capture" style="width:20px; height:20px;">
+                        <span class="btn-label">Ambil</span>
                       </button>
+
                       <button type="button" class="circle-btn" id="switch-camera-btn">
-                        <img src="static/img/CamSpeak/Rotate Camera.png" alt="Close" style="width:20px; height:20px;">
+                        <img src="static/img/CamSpeak/Rotate Camera.png" alt="Switch" style="width:20px; height:20px;">
+                        <span class="btn-label">Ganti</span>
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
 
+              <!-- Modal Preview Foto -->
+              <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                  <div class="modal-content preview-modal">
+                    <div class="modal-header d-flex justify-content-between align-items-center">
+                      <h5 class="modal-title">Preview Gambar</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                      <img id="preview-photo" src="#" alt="Preview Foto" class="img-fluid fade-img d-none rounded shadow">
+                    </div>
+                    <div class="modal-footer justify-content-around">
+                      <button type="button" class="circle-btn" id="retake-btn">
+                        <img src="static/img/CamSpeak/Back.png" alt="Back" style="width:20px; height:20px;">
+                        <span class="btn-label">Ambil Ulang</span>
+                      </button>
+
+                      <button type="button" class="circle-btn" id="save-photo-btn" data-bs-dismiss="modal">
+                        <img src="static/img/CamSpeak/Done.png" alt="Use" style="width:20px; height:20px;">
+                        <span class="btn-label">Gunakan</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
           </div>
 
           <!-- Preview file -->
           <div class="text-center mt-3">
             <h6 class="text-alert fw-bold">File Yang Terupload</h6>
-            <img id="preview-image" src="#" alt="Preview" class="img-fluid d-none mt-2" style="max-height: 300px;" />
+            <div id="preview-container" class="d-flex flex-wrap justify-content-center gap-3 mt-3"></div>
             <p id="pdf-info" class="mt-2"></p>
           </div>
+
 
           <!-- Tombol Submit -->
           <div class="text-center mt-4">
@@ -179,37 +225,84 @@
           </div>
           </form>
 
-          {% if image_path %}
-          <div class="text-center mt-3">
-            <h6>Gambar yang diproses:</h6>
-            <img src="{{ image_path }}" class="img-fluid" style="max-height: 300px;">
+          <div id="processingModal" class="modal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+              <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content">
+                      <div class="modal-header d-none"> 
+                          <h5 class="modal-title">Notifikasi</h5>
+                      </div>
+                      <div class="modal-body text-center">
+                          <div class="spinner-border text-primary" role="status">
+                              <span class="visually-hidden">Memuat...</span>
+                          </div>
+                          <p class="mt-3">Mohon ditunggu, laporan Anda sedang diproses...</p>
+                      </div>
+                  </div>
+              </div>
           </div>
-          {% endif %}
 
+
+          {% if ocr_pages %}
+          <div class="mt-4 p-3 border rounded bg-light">
+            <h5 class="fw-bold">Hasil OCR:</h5>
+
+            <div id="ocr-container">
+              {% for page in ocr_pages %}
+              <div class="ocr-page {% if loop.first %}d-block{% else %}d-none{% endif %}" 
+                  id="ocr-page-{{ page.page_num }}">
+
+                <!-- Judul Halaman -->
+                <h6>Halaman {{ page.page_num }}</h6>
+
+                <!-- Teks hasil OCR -->
+                <div style="white-space: pre-wrap; text-align: justify;">{{ page.text }}</div>
+
+                <!-- Gambar hasil upload -->
+                <div class="text-center mt-3">
+                  <img src="{{ page.image }}" class="img-fluid" style="max-height:300px;">
+                </div>
+
+                <!-- Audio -->
+                <div class="mt-3">
+                  <h6>Audio Halaman {{ page.page_num }}</h6>
+                  {% if page.audio %}
+                    <audio controls>
+                      <source src="{{ page.audio }}" type="audio/mpeg">
+                      Browser kamu tidak mendukung audio.
+                    </audio>
+                    <p><a href="{{ page.audio }}" download>Download Audio Halaman {{ page.page_num }}</a></p>
+                  {% endif %}
+                </div>
+
+                <!-- Statistik -->
+                <div class="mt-3">
+                  <p><strong>Jumlah Kata:</strong> {{ page.word_count }}</p>
+                  <p><strong>Confidence:</strong> {{ "%.2f"|format(page.confidence * 100) }}%</p>
+                  <p><strong>Waktu Komputasi:</strong> {{ page.ocr_time }} detik</p>
+                </div>
+
+              </div>
+              {% endfor %}
+            </div>
+
+            <!-- Navigasi antar halaman -->
+            <div class="d-flex justify-content-between mt-3">
+              <button id="prevPage" class="btn btn-outline-primary">← Sebelumnya</button>
+              <button id="nextPage" class="btn btn-outline-primary">Berikutnya →</button>
+            </div>
+          </div>
+
+        {% else %}
+          {# fallback kalau belum ada hasil OCR #}
           {% if ocr_text %}
           <div class="mt-4 p-3 border rounded bg-light">
             <h5 class="fw-bold">Hasil OCR:</h5>
-            <pre>{{ ocr_text }}</pre>
+            <div style="white-space: pre-wrap;">{{ ocr_text }}</div>
           </div>
           {% endif %}
-          {% if word_count and average_confidence %}
-          <div class="mt-2">
-            <p><strong>Jumlah Kata:</strong> {{ word_count }}</p>
-            <p><strong>Confidence Rata-rata:</strong> {{ average_confidence }}%</p>
-            <p><strong>Waktu Komputasi:</strong> {{ ocr_time }} detik</p>
-          </div>
-          {% endif %}
+        {% endif %}
 
-          {% if audio_path %}
-          <div class="mt-4 p-3 border rounded bg-light">
-            <h5 class="fw-bold">Hasil Suara:</h5>
-            <audio controls>
-              <source src="{{ audio_path }}" type="audio/mpeg">
-              Browser kamu tidak mendukung audio.
-            </audio>
-            <p><a href="{{ audio_path }}" download>Download Audio</a></p>
-          </div>
-          {% endif %}
+
         </div>
       </div>
       </div>
@@ -235,14 +328,6 @@
               Character Recognition (OCR) untuk mengenali teks, dan Text-to-Speech (TTS) untuk mengubahnya menjadi
               audio.
             </p>
-
-            <ul>
-              <li><i class="bi bi-check2-circle"></i> <span>Ullamco laboris nisi ut aliquip ex ea commodo
-                  consequat.</span></li>
-              <li><i class="bi bi-check2-circle"></i> <span>Duis aute irure dolor in reprehenderit in voluptate
-                  velit.</span></li>
-              <li><i class="bi bi-check2-circle"></i> <span>Ullamco laboris nisi ut aliquip ex ea commodo</span></li>
-            </ul>
           </div>
 
           <div class="col-lg-6" data-aos="fade-up" data-aos-delay="200">
@@ -252,12 +337,19 @@
               instalasi aplikasi tambahan. Baik untuk membantu individu dengan keterbatasan penglihatan, mendukung
               pembelajaran, atau kebutuhan digital lainnya, CAMSPEAK menawarkan kemudahan dalam satu platform.
             </p>
-            <a href="#" class="read-more"><span>Read More</span><i class="bi bi-arrow-right"></i></a>
           </div>
 
         </div>
 
+        <!-- Tombol -->
+        <div class="text-center mt-4">
+          <a href="#" class="read-more" id="playAudioBtn"><span>Jelaskan</span></a>
+        </div>
+
+        <!-- Elemen audio (hidden player) -->
+        <audio id="audioPlayer" src="static/img/Audio Assets/Penjelasan About.mp3"></audio>
       </div>
+
 
     </section><!-- /About Section -->
 
@@ -278,15 +370,20 @@
 
             <div class="faq-container">
 
-              <div class="faq-item faq-active" data-aos="fade-up" data-aos-delay="200">
+              <div class="faq-item" data-aos="fade-up" data-aos-delay="200">
                 <i class="faq-icon bi bi-question-circle"></i>
                 <h3>Jenis file apa saja yang bisa diunggah ke sistem ini?</h3>
                 <div class="faq-content">
-                  <p>Anda dapat mengunggah file dalam format gambar (.jpg, .jpeg, .png) maupun dokumen (.pdf). File ini
-                    akan diproses untuk mengenali teks di dalamnya.</p>
+                    <p>Anda dapat mengunggah file dalam format gambar (.jpg, .jpeg, .png) maupun dokumen (.pdf). File ini
+                        akan diproses untuk mengenali teks di dalamnya.</p>
                 </div>
+                <div class="text-center mt-4 explain-button hidden-button">
+                    <a href="#" class="read-more" id="playAudioBtn"><span>Jelaskan</span></a>
+                </div>
+
+                <audio id="audioPlayer" src="static/img/Audio Assets/faq 1.mp3"></audio>
                 <i class="faq-toggle bi bi-chevron-right"></i>
-              </div><!-- End Faq item-->
+              </div>
 
               <div class="faq-item" data-aos="fade-up" data-aos-delay="300">
                 <i class="faq-icon bi bi-question-circle"></i>
@@ -295,6 +392,11 @@
                   <p>Ya, CAMSPEAK mendukung penggunaan kamera perangkat Anda secara langsung untuk mengambil gambar yang
                     akan diproses.</p>
                 </div>
+                <div class="text-center mt-4 explain-button hidden-button">
+                    <a href="#" class="read-more" id="playAudioBtn"><span>Jelaskan</span></a>
+                </div>
+
+                <audio id="audioPlayer" src="static/img/Audio Assets/faq 2.mp3"></audio>
                 <i class="faq-toggle bi bi-chevron-right"></i>
               </div><!-- End Faq item-->
 
@@ -305,6 +407,11 @@
                   <p>Tidak. CAMSPEAK sepenuhnya berbasis web, jadi Anda hanya perlu menggunakan browser tanpa instalasi
                     tambahan.</p>
                 </div>
+                <div class="text-center mt-4 explain-button hidden-button">
+                    <a href="#" class="read-more" id="playAudioBtn"><span>Jelaskan</span></a>
+                </div>
+
+                <audio id="audioPlayer" src="static/img/Audio Assets/faq 3.mp3"></audio>
                 <i class="faq-toggle bi bi-chevron-right"></i>
               </div><!-- End Faq item-->
 
@@ -315,6 +422,11 @@
                   <p>Saat ini CAMSPEAK mendukung teks berbahasa Indonesia dan Inggris. Pengembangan untuk bahasa lain
                     akan ditambahkan secara bertahap.</p>
                 </div>
+                <div class="text-center mt-4 explain-button hidden-button">
+                    <a href="#" class="read-more" id="playAudioBtn"><span>Jelaskan</span></a>
+                </div>
+
+                <audio id="audioPlayer" src="static/img/Audio Assets/faq 4.mp3"></audio>
                 <i class="faq-toggle bi bi-chevron-right"></i>
               </div><!-- End Faq item-->
 
@@ -325,6 +437,11 @@
                   <p>Pastikan gambar atau dokumen yang diunggah memiliki kualitas yang jelas dan tidak blur. Hindari
                     sudut pengambilan miring serta pastikan pencahayaan cukup.</p>
                 </div>
+                <div class="text-center mt-4 explain-button hidden-button">
+                    <a href="#" class="read-more" id="playAudioBtn"><span>Jelaskan</span></a>
+                </div>
+
+                <audio id="audioPlayer" src="static/img/Audio Assets/faq 5.mp3"></audio>
                 <i class="faq-toggle bi bi-chevron-right"></i>
               </div><!-- End Faq item-->
 

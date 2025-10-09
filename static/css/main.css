@@ -844,6 +844,10 @@ section,
   color: var(--accent-color);
 }
 
+.about .text-center {
+  margin-top: 30px;
+}
+
 .about .read-more {
   background: var(--accent-color);
   color: var(--contrast-color);
@@ -873,6 +877,7 @@ section,
 .about .read-more:hover i {
   transform: translate(5px, 0);
 }
+
 
 /*--------------------------------------------------------------
 # Features Section
@@ -1332,6 +1337,49 @@ section,
   transform: rotate(90deg);
 }
 
+/* Sembunyikan tombol Jelaskan secara default */
+.faq .faq-container .faq-item .explain-button {
+    display: none; /* Menyembunyikan tombol */
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Tampilkan tombol Jelaskan ketika FAQ terbuka */
+.faq .faq-container .faq-active .explain-button {
+    display: block; /* Menampilkan tombol */
+    opacity: 1;
+}
+
+/* ------------------------------------------- */
+/* Mengubah Warna Tombol 'Jelaskan' (Read More) */
+/* ------------------------------------------- */
+
+/* Ganti warna latar belakang dan teks tombol agar terlihat */
+.faq .faq-container .faq-active .explain-button .read-more {
+    /* Contoh: Ganti dengan warna yang kontras dengan latar belakang biru/accent-color */
+    background-color: var(--contrast-color); /* Warna yang kontras, misal: Putih */
+    color: var(--accent-color); /* Warna teks, misal: Warna aksen/biru */
+    border: 1px solid var(--accent-color);
+    display: inline-block;
+    padding: 6px 20px 8px 20px;
+    border-radius: 5px;
+    font-size: 14px;
+    line-height: 1;
+    font-weight: 500;
+    transition: 0.3s;
+    margin-top: 10px; /* Jarak dari konten teks */
+}
+
+/* Ganti warna hover jika diperlukan */
+.faq .faq-container .faq-active .explain-button .read-more:hover {
+    background-color: var(--accent-color); /* Balikkan warna, misal: Warna aksen/biru */
+    color: var(--contrast-color); /* Warna teks menjadi putih */
+}
+
+.faq .faq-container .faq-active .explain-button .read-more span {
+    color: inherit; /* Pastikan teks menggunakan warna dari 'read-more' */
+}
+
 /*--------------------------------------------------------------
 # Contact Section
 --------------------------------------------------------------*/
@@ -1539,18 +1587,112 @@ section,
   border-top: 1px solid #ddd;
 }
 .circle-btn {
-  width: 55px;
-  height: 55px;
-  border-radius: 50%;
-  border: 2px solid #666;
-  background: #fff;
-  font-size: 22px;
   display: flex;
-  justify-content: center;
+  flex-direction: column; /* Susun icon di atas, teks di bawah */
   align-items: center;
-  cursor: pointer;
-  transition: 0.2s;
+  justify-content: center;
+  border: none;
+  background: none;
 }
-.circle-btn:hover {
-  background: #f0f0f0;
+
+.circle-btn img {
+  display: block;
+  margin-bottom: 5px; /* Jarak antara icon & teks */
 }
+
+.circle-btn .btn-label {
+  font-size: 14px;
+  text-align: center;
+  display: block;
+}
+
+/* Biar tombol ada label teks kecil */
+.btn-label {
+  display: block;
+  font-size: 0.7rem;
+  text-align: center;
+  margin-top: 2px;
+  color: #333;
+}
+
+/* Modal responsif */
+.camera-modal {
+  width: 100%;
+  max-width: 600px;
+  margin: auto;
+}
+
+/* Video responsif */
+#camera-stream {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+
+/* Tombol flash di kiri */
+.btn-flash {
+  background: transparent;
+  border: none;
+  text-align: center;
+  font-size: 0.8rem;
+}
+/* ===== Animasi Fade Kamera & Preview ===== */
+#camera-stream,
+#camera-canvas {
+  transition: opacity 0.5s ease-in-out, transform 0.4s ease-in-out;
+}
+
+.fade-hidden {
+  opacity: 0;
+  transform: scale(0.98);
+  pointer-events: none;
+}
+
+.fade-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* ===== Animasi Foto Preview ===== */
+.fade-img {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.5s ease, transform 0.4s ease;
+}
+
+.fade-img:not(.d-none) {
+  opacity: 1;
+}
+
+.fade-img.fade-in {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Modal Preview */
+.preview-modal img {
+  max-height: 400px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+#preview-container img {
+  border-radius: 10px;
+  transition: transform 0.2s;
+}
+
+#preview-container img:hover {
+  transform: scale(1.05);
+}
+
+#preview-container button {
+  width: 25px;
+  height: 25px;
+  line-height: 15px;
+  text-align: center;
+  padding: 0;
+}
+
+#loading-spinner {
+    transition: opacity 0.3s ease-in-out;
+  }
