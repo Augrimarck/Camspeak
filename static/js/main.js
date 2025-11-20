@@ -199,9 +199,72 @@
   const inputOption = document.getElementById("input-option");
 
   // === Inisialisasi Modal Pemrosesan (BARU) ===
-    const processingModalEl = document.getElementById("processingModal");
-    const processingModal = new bootstrap.Modal(processingModalEl);
+  const processingModalEl = document.getElementById("processingModal");
+  const processingModal = new bootstrap.Modal(processingModalEl);
 
+  // === Audio Player Universal untuk Semua Tombol "Jelaskan" ===
+  const playAudioBtns = document.querySelectorAll(".play-audio-btn");
+
+  playAudioBtns.forEach(button => {
+      button.addEventListener("click", function (e) {
+          e.preventDefault(); 
+          
+          // Temukan elemen audio terdekat dari tombol yang diklik
+          // Kami berasumsi elemen <audio> adalah saudara (sibling) dari <div> yang mengandung tombol ini,
+          // atau saudara dari elemen induk <a> ini (tergantung struktur HTML)
+          // Jika struktur HTML Anda seperti di FAQ: Tombol (a) berada di dalam div, dan <audio> adalah saudara dari div tersebut.
+          const parentDiv = this.closest('.faq-item') || this.closest('section'); // Mencari elemen induk terdekat (faq-item atau section)
+          
+          // Cari elemen <audio> di dalam induk tersebut
+          const audioPlayer = parentDiv ? parentDiv.querySelector('.audio-player') : null;
+          const buttonSpan = this.querySelector('span');
+
+          if (!audioPlayer) {
+              console.error("Audio player tidak ditemukan untuk tombol ini.");
+              return;
+          }
+
+          // Logika untuk play/pause
+          if (audioPlayer.paused) {
+              
+              // 1. Hentikan semua audio lain yang mungkin sedang berputar
+              document.querySelectorAll('.audio-player').forEach(player => {
+                  if (player !== audioPlayer && !player.paused) {
+                      player.pause();
+                      player.currentTime = 0;
+                      // Reset teks tombol audio player yang lain
+                      const otherButtonSpan = player.closest('.faq-item, section').querySelector('.play-audio-btn span');
+                      if (otherButtonSpan) otherButtonSpan.textContent = "Jelaskan";
+                  }
+              });
+              
+              // 2. Putar audio saat ini
+              audioPlayer.play().catch(error => {
+                  console.error("Gagal memutar audio:", error);
+                  alert("Gagal memutar audio. Pastikan Anda sudah berinteraksi dengan halaman.");
+              });
+              buttonSpan.textContent = "Hentikan";
+
+          } else {
+              // Hentikan audio yang sedang berjalan
+              audioPlayer.pause();
+              audioPlayer.currentTime = 0; 
+              buttonSpan.textContent = "Jelaskan";
+          }
+      });
+
+      // Tambahkan event listener untuk mengembalikan teks tombol setelah audio selesai diputar
+      const parentDiv = button.closest('.faq-item') || button.closest('section');
+      const audioPlayer = parentDiv ? parentDiv.querySelector('.audio-player') : null;
+
+      if (audioPlayer) {
+          audioPlayer.addEventListener('ended', function() {
+              button.querySelector('span').textContent = "Jelaskan";
+          });
+      }
+  });
+  // === Akhir Audio Player Universal ===
+    
   // === Upload File (galeri/file explorer) ===
   const uploadOption = document.getElementById("upload-option");
   if (uploadOption) {
@@ -339,16 +402,9 @@ submitBtn.addEventListener("click", async (e) => {
         alert("Belum ada gambar untuk diproses.");
         return;
     }
-
-    // Tentukan endpoint sesuai pilihan user
-    let endpoint = "";
-    // ... (Logika penentuan endpoint Anda) ...
-    if (inputOption.value === "poster") endpoint = "/poster";
-    else if (inputOption.value === "buku") endpoint = "/buku";
-    else {
-        alert("Pilih jenis input terlebih dahulu!");
-        return;
-    }
+    
+    // Karena hanya satu jenis input, langsung arahkan ke endpoint default
+    const endpoint = "/buku";
 
     const formData = new FormData();
     uploadedFiles.forEach(file => formData.append("files", file));
@@ -494,6 +550,83 @@ submitBtn.addEventListener("click", async (e) => {
     } catch (err) {
       console.warn("Torch tidak didukung:", err);
     }
+  });
+
+  // === TAP TO FOCUS ===
+  video.addEventListener("click", async (event) => {
+      if (!currentTrack) return;
+
+      const capabilities = currentTrack.getCapabilities();
+      const settings = currentTrack.getSettings();
+
+      // Pastikan device mendukung focusPointOfInterest
+      if (!capabilities.focusMode || !capabilities.focusMode.includes("single-shot")) {
+          console.warn("Focus mode tidak didukung pada perangkat ini.");
+          return;
+      }
+
+      // Hitung titik sentuh relatif ke video
+      const rect = video.getBoundingClientRect();
+      const focusX = (event.clientX - rect.left) / rect.width;
+      const focusY = (event.clientY - rect.top) / rect.height;
+
+      try {
+          await currentTrack.applyConstraints({
+              advanced: [{
+                  focusMode: "single-shot",
+                  pointsOfInterest: [{ x: focusX, y: focusY }]
+              }]
+          });
+          console.log("Fokus diatur:", focusX, focusY);
+      } catch (err) {
+          console.warn("Gagal menerapkan fokus:", err);
+      }
+  });
+
+  // === TAP TO FOCUS DENGAN EFEK ANDROID ===
+  const focusRing = document.getElementById("focus-ring");
+
+  video.addEventListener("click", async (event) => {
+      if (!currentTrack) return;
+
+      const capabilities = currentTrack.getCapabilities();
+
+      // Hitung posisi tap
+      const rect = video.getBoundingClientRect();
+      const tapX = event.clientX - rect.left;
+      const tapY = event.clientY - rect.top;
+
+      // Tampilkan efek fokus
+      focusRing.style.left = `${tapX}px`;
+      focusRing.style.top = `${tapY}px`;
+      focusRing.style.opacity = "1";
+      focusRing.style.transform = "translate(-50%, -50%) scale(1)";
+
+      // Hilangkan setelah 800 ms
+      setTimeout(() => {
+          focusRing.style.opacity = "0";
+          focusRing.style.transform = "translate(-50%, -50%) scale(1.2)";
+      }, 800);
+
+      // ==== Fokus kamera (jika device mendukung) ====
+      if (capabilities.focusMode && capabilities.focusMode.includes("single-shot")) {
+          const focusX = tapX / rect.width;
+          const focusY = tapY / rect.height;
+
+          try {
+              await currentTrack.applyConstraints({
+                  advanced: [{
+                      focusMode: "single-shot",
+                      pointsOfInterest: [{ x: focusX, y: focusY }]
+                  }]
+              });
+              console.log("Fokus berhasil:", focusX, focusY);
+          } catch (err) {
+              console.warn("Tidak bisa set fokus:", err);
+          }
+      } else {
+          console.warn("Device tidak mendukung manual focus.");
+      }
   });
 
   cameraModalEl.addEventListener("hidden.bs.modal", stopCamera);
