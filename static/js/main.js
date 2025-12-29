@@ -190,14 +190,16 @@
   
   
   
-  document.addEventListener("DOMContentLoaded", function () {
+// static/js/main.js
+document.addEventListener("DOMContentLoaded", function () {
   // === Elemen umum ===
   const fileInput = document.getElementById("file-upload");
   const previewImage = document.getElementById("preview-image");
   const submitBtn = document.getElementById("submit-btn");
   const form = document.getElementById("upload-form");
   const inputOption = document.getElementById("input-option");
-
+  const cameraDirect = document.getElementById("camera-direct"); // input capture (mobile)
+  
   // === Inisialisasi Modal Pemrosesan (BARU) ===
   const processingModalEl = document.getElementById("processingModal");
   const processingModal = new bootstrap.Modal(processingModalEl);
@@ -207,15 +209,8 @@
 
   playAudioBtns.forEach(button => {
       button.addEventListener("click", function (e) {
-          e.preventDefault(); 
-          
-          // Temukan elemen audio terdekat dari tombol yang diklik
-          // Kami berasumsi elemen <audio> adalah saudara (sibling) dari <div> yang mengandung tombol ini,
-          // atau saudara dari elemen induk <a> ini (tergantung struktur HTML)
-          // Jika struktur HTML Anda seperti di FAQ: Tombol (a) berada di dalam div, dan <audio> adalah saudara dari div tersebut.
-          const parentDiv = this.closest('.faq-item') || this.closest('section'); // Mencari elemen induk terdekat (faq-item atau section)
-          
-          // Cari elemen <audio> di dalam induk tersebut
+          e.preventDefault();
+          const parentDiv = this.closest('.faq-item') || this.closest('section');
           const audioPlayer = parentDiv ? parentDiv.querySelector('.audio-player') : null;
           const buttonSpan = this.querySelector('span');
 
@@ -224,39 +219,29 @@
               return;
           }
 
-          // Logika untuk play/pause
           if (audioPlayer.paused) {
-              
-              // 1. Hentikan semua audio lain yang mungkin sedang berputar
               document.querySelectorAll('.audio-player').forEach(player => {
                   if (player !== audioPlayer && !player.paused) {
                       player.pause();
                       player.currentTime = 0;
-                      // Reset teks tombol audio player yang lain
-                      const otherButtonSpan = player.closest('.faq-item, section').querySelector('.play-audio-btn span');
+                      const otherButtonSpan = player.closest('.faq-item, section')?.querySelector('.play-audio-btn span');
                       if (otherButtonSpan) otherButtonSpan.textContent = "Jelaskan";
                   }
               });
-              
-              // 2. Putar audio saat ini
               audioPlayer.play().catch(error => {
                   console.error("Gagal memutar audio:", error);
                   alert("Gagal memutar audio. Pastikan Anda sudah berinteraksi dengan halaman.");
               });
               buttonSpan.textContent = "Hentikan";
-
           } else {
-              // Hentikan audio yang sedang berjalan
               audioPlayer.pause();
-              audioPlayer.currentTime = 0; 
+              audioPlayer.currentTime = 0;
               buttonSpan.textContent = "Jelaskan";
           }
       });
 
-      // Tambahkan event listener untuk mengembalikan teks tombol setelah audio selesai diputar
       const parentDiv = button.closest('.faq-item') || button.closest('section');
       const audioPlayer = parentDiv ? parentDiv.querySelector('.audio-player') : null;
-
       if (audioPlayer) {
           audioPlayer.addEventListener('ended', function() {
               button.querySelector('span').textContent = "Jelaskan";
@@ -269,6 +254,7 @@
   const uploadOption = document.getElementById("upload-option");
   if (uploadOption) {
     uploadOption.addEventListener("click", () => {
+      // ensure normal fileInput (galeri) - remove capture attribute
       fileInput.removeAttribute("capture");
       fileInput.click();
     });
@@ -287,19 +273,15 @@
         const fileType = file.type;
         
         const wrapper = document.createElement("div");
-        wrapper.className = "position-relative d-inline-block text-center mx-3 my-3"; // Tingkatkan margin
-        // **PERBAIKAN 1: TINGKATKAN LEBAR WRAPPER**
-        wrapper.style.width = "150px"; // Misalnya, naikkan dari 100px menjadi 150px
+        wrapper.className = "position-relative d-inline-block text-center mx-3 my-3";
+        wrapper.style.width = "150px";
         wrapper.style.verticalAlign = "top";
 
         let previewElement;
-        // **PERBAIKAN 2: TINGKATKAN UKURAN PREVIEW**
-        const size = "120px"; // Misalnya, naikkan dari 80px menjadi 120px
+        const size = "120px";
 
         if (fileType.startsWith("image/")) {
-            // KASUS 1: FILE ADALAH GAMBAR
             const imgURL = URL.createObjectURL(file);
-            
             previewElement = document.createElement("img");
             previewElement.src = imgURL;
             previewElement.className = "img-thumbnail";
@@ -307,10 +289,7 @@
             previewElement.style.height = size; 
             previewElement.style.objectFit = "cover";
             previewElement.style.borderRadius = '8px';
-
         } else if (fileType === "application/pdf") {
-            // KASUS 2: FILE ADALAH PDF
-            
             previewElement = document.createElement("img");
             previewElement.src = '../static/img/CamSpeak/pdf_icon.png'; 
             previewElement.alt = 'PDF Icon';
@@ -320,12 +299,10 @@
             previewElement.style.border = '1px solid #ddd';
             previewElement.style.padding = '5px';
             previewElement.style.borderRadius = '8px';
-
         } else {
-            // KASUS 3: TIPE FILE LAINNYA
             previewElement = document.createElement("div");
             previewElement.innerHTML = "❌";
-            previewElement.style.fontSize = "4rem"; // Sesuaikan font size agar terlihat proporsional
+            previewElement.style.fontSize = "4rem";
             previewElement.style.width = size;
             previewElement.style.height = size;
             previewElement.style.lineHeight = size;
@@ -336,21 +313,19 @@
         
         wrapper.appendChild(previewElement);
         
-        // Tambahkan Nama File
         const nameText = document.createElement("p");
         nameText.className = "file-name mt-1 text-truncate"; 
         nameText.textContent = fileName;
         nameText.title = fileName;
-        nameText.style.fontSize = "0.85rem"; // Sedikit perbesar font nama file
+        nameText.style.fontSize = "0.85rem";
         nameText.style.width = "100%";
         nameText.style.margin = '0';
 
-        // Tambahkan tombol hapus
         const delBtn = document.createElement("button");
         delBtn.className = "btn btn-sm btn-danger position-absolute top-0 end-0 rounded-circle p-0";
-        delBtn.style.width = "25px"; // Sedikit perbesar tombol hapus
+        delBtn.style.width = "25px";
         delBtn.style.height = "25px";
-        delBtn.style.fontSize = "1rem"; // Sesuaikan font size
+        delBtn.style.fontSize = "1rem";
         delBtn.style.lineHeight = "1";
         delBtn.innerHTML = "&times;";
         delBtn.addEventListener("click", () => {
@@ -364,12 +339,10 @@
         previewContainer.appendChild(wrapper);
     });
 
-    // Cek apakah ada file, lalu atur status submitBtn
     submitBtn.disabled = uploadedFiles.length === 0;
-}
+  }
 
   function updateFileInput() {
-      // Fungsi ini tetap sama, hanya untuk memastikan input file asli terupdate
       const dataTransfer = new DataTransfer();
       uploadedFiles.forEach(file => dataTransfer.items.add(file));
       fileInput.files = dataTransfer.files;
@@ -382,10 +355,8 @@
       resetPreview();
       return;
     }
-
     uploadedFiles = [...uploadedFiles, ...files];
     renderPreview();
-  
   });
 
   function resetPreview() {
@@ -395,7 +366,7 @@
   }
 
   // === Jalankan OCR (multi file AJAX) ===
-submitBtn.addEventListener("click", async (e) => {
+  submitBtn.addEventListener("click", async (e) => {
     e.preventDefault();
 
     if (uploadedFiles.length === 0) {
@@ -403,17 +374,12 @@ submitBtn.addEventListener("click", async (e) => {
         return;
     }
     
-    // Karena hanya satu jenis input, langsung arahkan ke endpoint default
     const endpoint = "/buku";
-
     const formData = new FormData();
     uploadedFiles.forEach(file => formData.append("files", file));
 
-    // Nonaktifkan tombol dan tampilkan pesan sebelum memunculkan modal
     submitBtn.disabled = true;
     submitBtn.innerText = "Memproses...";
-    
-    // 1. TAMPILKAN MODAL NOTIFIKASI
     processingModal.show();
 
     try {
@@ -421,33 +387,26 @@ submitBtn.addEventListener("click", async (e) => {
             method: "POST",
             body: formData
         });
-
-        // ambil hasil HTML dari server
         const resultHTML = await response.text();
-
-        // tampilkan hasil di halaman
         document.open();
         document.write(resultHTML);
         document.close();
-
     } catch (error) {
         alert("Terjadi kesalahan saat memproses OCR.");
         console.error(error);
     } finally {
-        // 2. SEMBUNYIKAN MODAL NOTIFIKASI
         processingModal.hide();
-        
         submitBtn.disabled = false;
-        submitBtn.innerText = "Jalankan"; // Atau kembalikan ke teks asli "Jalankan"
+        submitBtn.innerText = "Jalankan";
     }
-});
+  });
 
-  // === Kamera ===
+  // === Kamera WebRTC (modal) ===
   const cameraOption = document.getElementById("camera-option");
   const cameraModalEl = document.getElementById("cameraModal");
-  const cameraModal = new bootstrap.Modal(cameraModalEl);
+  const cameraModal = cameraModalEl ? new bootstrap.Modal(cameraModalEl) : null;
   const previewModalEl = document.getElementById("previewModal");
-  const previewModal = new bootstrap.Modal(previewModalEl);
+  const previewModal = previewModalEl ? new bootstrap.Modal(previewModalEl) : null;
 
   const video = document.getElementById("camera-stream");
   const canvas = document.getElementById("camera-canvas");
@@ -467,6 +426,7 @@ submitBtn.addEventListener("click", async (e) => {
   let useTorch = false;
 
   async function startCamera(facingMode = "user") {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     if (currentStream) stopCamera();
 
     try {
@@ -475,10 +435,10 @@ submitBtn.addEventListener("click", async (e) => {
         audio: false
       });
 
-      video.srcObject = currentStream;
+      if (video) video.srcObject = currentStream;
       currentTrack = currentStream.getVideoTracks()[0];
       const capabilities = currentTrack.getCapabilities();
-      flashBtn.disabled = !capabilities.torch;
+      if (flashBtn) flashBtn.disabled = !capabilities.torch;
     } catch (err) {
       alert("Tidak bisa mengakses kamera: " + err.message);
     }
@@ -491,104 +451,114 @@ submitBtn.addEventListener("click", async (e) => {
     }
   }
 
-  cameraOption.addEventListener("click", () => {
-    cameraModal.show();
-    startCamera(useFrontCamera ? "user" : "environment");
-  });
+  // === Helper: detect mobile ===
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || ('ontouchstart' in window && navigator.maxTouchPoints > 0);
 
-  switchBtn.addEventListener("click", () => {
-    useFrontCamera = !useFrontCamera;
-    startCamera(useFrontCamera ? "user" : "environment");
-  });
+  // === Camera option click: pilih otomatis antara direct capture (mobile) atau WebRTC modal (desktop) ===
+  if (cameraOption) {
+    cameraOption.addEventListener("click", (e) => {
+      if (isMobile && cameraDirect) {
+        // buka kamera native (capture)
+        cameraDirect.click();
+      } else {
+        // desktop/laptop -> modal WebRTC
+        if (cameraModal) {
+          cameraModal.show();
+          startCamera(useFrontCamera ? "user" : "environment");
+        }
+      }
+    });
+  }
 
-  captureBtn.addEventListener("click", () => {
-  const ctx = canvas.getContext("2d");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  // === Handle direct camera capture (mobile) ===
+  if (cameraDirect) {
+    cameraDirect.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
 
-  const dataURL = canvas.toDataURL("image/png");
-  previewPhoto.src = dataURL;
+      // simpan file ke uploadedFiles lalu render preview + update hidden file input
+      uploadedFiles.push(file);
+      renderPreview();
+      updateFileInput();
 
-  // Hapus class d-none agar gambar tampil
-  previewPhoto.classList.remove("d-none");
+      // enable submit
+      if (submitBtn) submitBtn.disabled = false;
+    });
+  }
 
-  cameraModal.hide();
-  setTimeout(() => previewModal.show(), 400);
-});
+  // WebRTC: switch camera
+  if (switchBtn) {
+    switchBtn.addEventListener("click", () => {
+      useFrontCamera = !useFrontCamera;
+      startCamera(useFrontCamera ? "user" : "environment");
+    });
+  }
 
+  // WebRTC: capture
+  if (captureBtn) {
+    captureBtn.addEventListener("click", () => {
+      if (!video || !canvas) return;
+      const ctx = canvas.getContext("2d");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataURL = canvas.toDataURL("image/png");
+      if (previewPhoto) previewPhoto.src = dataURL;
+      if (previewPhoto) previewPhoto.classList.remove("d-none");
 
-  savePhotoBtn.addEventListener("click", () => {
-    fetch(previewPhoto.src)
-      .then(res => res.blob())
-      .then(blob => {
-        const file = new File([blob], `camera-capture-${Date.now()}.png`, { type: "image/png" });
-        uploadedFiles.push(file);
-        renderPreview();
-        updateFileInput();
-      });
-  });
+      // Hide camera modal, show preview modal
+      if (cameraModal) cameraModal.hide();
+      if (previewModal) setTimeout(() => previewModal.show(), 400);
+    });
+  }
 
+  // Save photo from preview modal into uploadedFiles
+  if (savePhotoBtn) {
+    savePhotoBtn.addEventListener("click", () => {
+      if (!previewPhoto) return;
+      fetch(previewPhoto.src)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], `camera-capture-${Date.now()}.png`, { type: "image/png" });
+          uploadedFiles.push(file);
+          renderPreview();
+          updateFileInput();
+        });
+    });
+  }
+
+  // Add photo (reopen camera modal)
   if (addPhotoBtn) {
     addPhotoBtn.addEventListener("click", () => {
-      previewModal.hide();
+      if (previewModal) previewModal.hide();
       setTimeout(() => {
-        cameraModal.show();
-        startCamera(useFrontCamera ? "user" : "environment");
+        if (cameraModal) {
+          cameraModal.show();
+          startCamera(useFrontCamera ? "user" : "environment");
+        }
       }, 400);
     });
   }
 
-  flashBtn.addEventListener("click", async () => {
-    if (!currentTrack) return;
-    useTorch = !useTorch;
-    try {
-      await currentTrack.applyConstraints({ advanced: [{ torch: useTorch }] });
-      flashIcon.src = useTorch
-        ? "static/img/CamSpeak/Flash On.png"
-        : "static/img/CamSpeak/Flash Off.png";
-    } catch (err) {
-      console.warn("Torch tidak didukung:", err);
-    }
-  });
-
-  // === TAP TO FOCUS ===
-  video.addEventListener("click", async (event) => {
+  // Torch / flash btn
+  if (flashBtn) {
+    flashBtn.addEventListener("click", async () => {
       if (!currentTrack) return;
-
-      const capabilities = currentTrack.getCapabilities();
-      const settings = currentTrack.getSettings();
-
-      // Pastikan device mendukung focusPointOfInterest
-      if (!capabilities.focusMode || !capabilities.focusMode.includes("single-shot")) {
-          console.warn("Focus mode tidak didukung pada perangkat ini.");
-          return;
-      }
-
-      // Hitung titik sentuh relatif ke video
-      const rect = video.getBoundingClientRect();
-      const focusX = (event.clientX - rect.left) / rect.width;
-      const focusY = (event.clientY - rect.top) / rect.height;
-
+      useTorch = !useTorch;
       try {
-          await currentTrack.applyConstraints({
-              advanced: [{
-                  focusMode: "single-shot",
-                  pointsOfInterest: [{ x: focusX, y: focusY }]
-              }]
-          });
-          console.log("Fokus diatur:", focusX, focusY);
+        await currentTrack.applyConstraints({ advanced: [{ torch: useTorch }] });
+        if (flashIcon) flashIcon.src = useTorch ? "static/img/CamSpeak/Flash On.png" : "static/img/CamSpeak/Flash Off.png";
       } catch (err) {
-          console.warn("Gagal menerapkan fokus:", err);
+        console.warn("Torch tidak didukung:", err);
       }
-  });
+    });
+  }
 
-  // === TAP TO FOCUS DENGAN EFEK ANDROID ===
+  // === TAP TO FOCUS DENGAN EFEK ANDROID (hanya untuk WebRTC modal) ===
   const focusRing = document.getElementById("focus-ring");
-
-  video.addEventListener("click", async (event) => {
+  if (video && focusRing) {
+    video.addEventListener("click", async (event) => {
       if (!currentTrack) return;
-
       const capabilities = currentTrack.getCapabilities();
 
       // Hitung posisi tap
@@ -596,48 +566,51 @@ submitBtn.addEventListener("click", async (e) => {
       const tapX = event.clientX - rect.left;
       const tapY = event.clientY - rect.top;
 
-      // Tampilkan efek fokus
+      // Tampilkan efek fokus (UI)
       focusRing.style.left = `${tapX}px`;
       focusRing.style.top = `${tapY}px`;
       focusRing.style.opacity = "1";
       focusRing.style.transform = "translate(-50%, -50%) scale(1)";
-
-      // Hilangkan setelah 800 ms
       setTimeout(() => {
-          focusRing.style.opacity = "0";
-          focusRing.style.transform = "translate(-50%, -50%) scale(1.2)";
+        focusRing.style.opacity = "0";
+        focusRing.style.transform = "translate(-50%, -50%) scale(1.2)";
       }, 800);
 
-      // ==== Fokus kamera (jika device mendukung) ====
+      // Fokus hardware (jika didukung)
       if (capabilities.focusMode && capabilities.focusMode.includes("single-shot")) {
-          const focusX = tapX / rect.width;
-          const focusY = tapY / rect.height;
-
-          try {
-              await currentTrack.applyConstraints({
-                  advanced: [{
-                      focusMode: "single-shot",
-                      pointsOfInterest: [{ x: focusX, y: focusY }]
-                  }]
-              });
-              console.log("Fokus berhasil:", focusX, focusY);
-          } catch (err) {
-              console.warn("Tidak bisa set fokus:", err);
-          }
+        const focusX = tapX / rect.width;
+        const focusY = tapY / rect.height;
+        try {
+          await currentTrack.applyConstraints({
+            advanced: [{
+              focusMode: "single-shot",
+              pointsOfInterest: [{ x: focusX, y: focusY }]
+            }]
+          });
+        } catch (err) {
+          console.warn("Tidak bisa set fokus:", err);
+        }
       } else {
-          console.warn("Device tidak mendukung manual focus.");
+        console.warn("Device tidak mendukung manual focus.");
       }
-  });
+    });
+  }
 
-  cameraModalEl.addEventListener("hidden.bs.modal", stopCamera);
+  if (cameraModalEl) {
+    cameraModalEl.addEventListener("hidden.bs.modal", stopCamera);
+  }
 
-  retakeBtn.addEventListener("click", () => {
-    previewModal.hide();
-    setTimeout(() => {
-      cameraModal.show();
-      startCamera(useFrontCamera ? "user" : "environment");
-    }, 400);
-  });
+  if (retakeBtn) {
+    retakeBtn.addEventListener("click", () => {
+      if (previewModal) previewModal.hide();
+      setTimeout(() => {
+        if (cameraModal) {
+          cameraModal.show();
+          startCamera(useFrontCamera ? "user" : "environment");
+        }
+      }, 400);
+    });
+  }
 
   // === OCR Pagination (jika hasil sudah muncul) ===
   const pages = document.querySelectorAll(".ocr-page");
@@ -653,17 +626,18 @@ submitBtn.addEventListener("click", async (e) => {
       currentPage = n;
     }
 
-    document.getElementById("prevPage").addEventListener("click", () => {
-      if (currentPage > 1) showPage(currentPage - 1);
-    });
-
-    document.getElementById("nextPage").addEventListener("click", () => {
-      if (currentPage < totalPages) showPage(currentPage + 1);
-    });
+    const prevBtn = document.getElementById("prevPage");
+    const nextBtn = document.getElementById("nextPage");
+    if (prevBtn) prevBtn.addEventListener("click", () => { if (currentPage > 1) showPage(currentPage - 1); });
+    if (nextBtn) nextBtn.addEventListener("click", () => { if (currentPage < totalPages) showPage(currentPage + 1); });
 
     showPage(1);
   }
-});
+
+  // === Optional: prevent double-binding if script reloaded ===
+  // (no-op here, but keeps file idempotent)
+
+}); // end DOMContentLoaded
 
 document.addEventListener("DOMContentLoaded", function () {
     const form = document.querySelector("form");
