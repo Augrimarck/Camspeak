@@ -6,8 +6,9 @@ from gtts import gTTS
 import easyocr
 from pdf2image import convert_from_path
 from langdetect import detect
-import cv2
 from flask_session import Session
+from rapidfuzz import process
+from wordfreq import zipf_frequency
 
 # === Konfigurasi Folder ===
 UPLOAD_FOLDER = 'static/uploads'
@@ -30,6 +31,218 @@ app.config["SESSION_KEY_PREFIX"] = "ocrapp_"
 Session(app)
 
 reader = easyocr.Reader(['id', 'en'])
+
+def auto_correct_text(text):
+    """
+    Melakukan koreksi OCR otomatis berdasarkan bahasa yang terdeteksi
+    """
+    try:
+        lang = detect(text)
+    except:
+        lang = "id"  # fallback aman
+
+    # Prioritas hanya ID dan EN
+    if lang == "en":
+        corrected = correct_english_text(text)
+        used_lang = "en"
+    else:
+        corrected = correct_indonesian_text(text)
+        used_lang = "id"
+
+    return corrected, used_lang
+
+
+def pre_ocr_fix(word):
+    fixes = [
+        # === Pola sangat khas OCR (prioritas tinggi) ===
+        ("kct", "ket"),        # kctulusan → ketulusan
+        ("ct", "et"),          # detcsi → deteksi
+        ("sc", "se"),          # scluruh → seluruh
+        ("cl", "d"),           # clement → dement (jarang, aman)
+        ("rn", "m"),           # rnanusia → manusia
+        ("li", "h"),           # kasili → kasih
+        ("ll", "l"),           # seIIuruh → seluruh
+        ("dcngan", "dengan"),
+        ("penuli", "peduli"),
+        ("kcpada", "kepada"),
+
+        # === Kesalahan vokal visual ===
+        ("0", "o"),
+        ("1", "i"),
+        ("|", "i"),
+
+        # === Kesalahan konsonan ringan ===
+        ("cr", "er"),          # sumbcr → sumber
+        ("ci", "ti"),          # pencian → pentian
+        ("cj", "tj"),          # jarang, tapi aman
+        ("vv", "w"),           # vvaktu → waktu
+
+        # === Awalan sering rusak ===
+        ("scb", "seb"),
+        ("scl", "sel"),
+        ("scr", "ser"),
+
+        # === Akhiran umum bahasa Indonesia ===
+        ("lahh", "lah"),
+        ("nyo", "nya"),
+        ("nyl", "nya"),
+    ]
+
+    for wrong, right in fixes:
+        if wrong in word:
+            word = word.replace(wrong, right)
+
+    return word
+
+
+def correct_indonesian_text(text, threshold=70, zipf_min=3.5):
+    words = text.lower().split()
+    corrected_words = []
+
+    for word in words:
+        if len(word) < 3 or word.isdigit():
+            corrected_words.append(word)
+            continue
+
+        word = pre_ocr_fix(word)
+
+        candidates = process.extract(
+            word,
+            WORD_LIST_ID,
+            limit=1
+        )
+
+        replaced = False
+        for cand, score, _ in candidates:
+            freq = zipf_frequency(cand, "id")
+
+            if score >= threshold and freq >= zipf_min:
+                corrected_words.append(cand)
+                replaced = True
+                break
+
+        if not replaced:
+            corrected_words.append(word)
+
+    return " ".join(corrected_words)
+
+WORD_LIST_ID = [
+    # === Umum teknis ===
+    "data", "dataset", "informasi", "sistem", "metode", "proses",
+    "input", "output", "hasil", "analisis", "evaluasi", "akurasi",
+    "efisiensi", "efektif", "validasi", "error",
+
+    # === OCR & TTS ===
+    "ocr", "teks", "gambar", "citra", "kamera", "pemindaian",
+    "deteksi", "ekstraksi", "pengenalan", "karakter",
+    "suara", "audio", "pelafalan", "pembacaan",
+
+    # === Web & aplikasi ===
+    "aplikasi", "website", "web", "antarmuka", "interaktif",
+    "framework", "flask", "bootstrap", "server",
+    "modul", "fitur", "fungsi",
+
+    # === Pengembangan sistem ===
+    "perancangan", "pengembangan", "implementasi",
+    "pengujian", "pemrosesan", "integrasi",
+    "iterasi", "agile", "flowchart",
+
+    # === Akademik ===
+    "penelitian", "skripsi", "bab", "tabel", "diagram",
+    "variabel", "parameter", "pengukuran",
+    "kesimpulan", "pembahasan",
+
+    # === Bahasa ===
+    "bahasa", "indonesia", "inggris",
+    "deteksi", "koreksi",
+
+    # === Aksesibilitas (nilai tambah) ===
+    "tunanetra", "aksesibilitas", "inklusif",
+
+    # === Lainnya (spesifik sistem) ===
+    "camspeak", "otomatis", "visual", "digital"
+]
+
+
+def pre_ocr_fix_en(word):
+    fixes = [
+        # === OCR visual confusion (high priority) ===
+        ("rn", "m"),       # rnode → mode
+        ("vv", "w"),       # vvorld → world
+        ("cl", "d"),       # c1ass → dlass (jarang, relatif aman)
+        ("|", "i"),        # th|s → this
+        ("1", "i"),        # th1s → this
+        ("0", "o"),        # c0nvert → convert
+        ("5", "s"),        # cla5s → class
+        ("8", "b"),        # num8er → number
+
+        # === Common OCR swaps ===
+        ("l1", "li"),      # appl1cation → application
+        ("li", "ll"),      # modali → modall (case tertentu)
+        ("ci", "ti"),      # funccion → function
+        ("rn", "m"),       # moder → modern
+
+        # === Repeated characters ===
+        ("lll", "ll"),
+        ("ii", "i"),
+
+        # === Ending corrections ===
+        ("teh", "the"),
+        ("fro", "for"),
+        ("witb", "with"),
+    ]
+
+    for wrong, right in fixes:
+        if wrong in word:
+            word = word.replace(wrong, right)
+
+    return word
+
+def correct_english_text(text, threshold=70, zipf_min=3.0):
+    words = text.lower().split()
+    corrected_words = []
+
+    for word in words:
+        if len(word) < 3 or word.isdigit():
+            corrected_words.append(word)
+            continue
+
+        # Pre-fix OCR
+        word = pre_ocr_fix_en(word)
+
+        candidates = process.extract(
+            word,
+            WORD_LIST_EN,
+            limit=1
+        )
+
+        replaced = False
+        for cand, score, _ in candidates:
+            freq = zipf_frequency(cand, "en")
+
+            if score >= threshold and freq >= zipf_min:
+                corrected_words.append(cand)
+                replaced = True
+                break
+
+        if not replaced:
+            corrected_words.append(word)
+
+    return " ".join(corrected_words)
+
+WORD_LIST_EN = [
+    "a", "about", "access", "accuracy", "active", "adaptive", "algorithm",
+    "analysis", "application", "approach", "architecture", "audio",
+    "automatic", "available", "based", "basic", "camera", "character",
+    "classification", "component", "computer", "convert", "data", "dataset",
+    "detection", "digital", "document", "efficiency", "effective",
+    "evaluation", "feature", "framework", "function", "image", "implementation",
+    "information", "input", "interface", "language", "method", "model",
+    "module", "network", "object", "optical", "output", "performance",
+    "process", "processing", "recognition", "result", "scanner", "system",
+    "technology", "text", "speech", "voice", "visual", "website"
+]
+
 
 # ====== Fungsi TTS ======
 def save_tts(text, output_name):
@@ -79,28 +292,21 @@ def format_text_by_words(text, words_per_line=25, separator=" \n "):
 
 # ====== Fungsi OCR tunggal (gambar atau PDF) ======
 def ocr_single(filepath, filename):
-    import cv2  # pastikan cv2 diimpor
     ocr_pages = []
 
     if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
-        # === 🧹 Tahap Penghilangan Noise (Gaussian Blur) ===
-        # img = cv2.imread(filepath)
-        # if img is not None:
-        #     img = cv2.GaussianBlur(img, (3, 3), 0)
-        #     cv2.imwrite(filepath, img)
-
-        # === 🕵️‍♂️ Mulai Proses OCR ===
         start = time.time()
         result = reader.readtext(filepath, detail=1)
 
-        # Gabungkan hasil OCR jadi satu string
         extracted_full = " ".join([txt for _, txt, _ in result if txt.strip()])
+        raw_text = extracted_full.lower()
+        corrected_text, detected_lang = auto_correct_text(raw_text)
 
         extracted = format_text_by_words(extracted_full, 25)
-        preprocessed = format_text_by_words(extracted_full.lower(), 25)
+        preprocessed = format_text_by_words(raw_text, 25)
 
         confs = [conf for _, _, conf in result]
-        audio = save_tts(extracted_full.lower(), os.path.splitext(filename)[0] + "_page1")
+        audio = save_tts(corrected_text, os.path.splitext(filename)[0] + "_page1")
 
         image_url = "/" + filepath.replace("\\", "/")
 
@@ -108,6 +314,7 @@ def ocr_single(filepath, filename):
             "page_num": 1,
             "text": extracted,
             "lower": preprocessed,
+            "corrected": corrected_text,   # ⬅ penting untuk analisis
             "audio": audio,
             "image": image_url,
             "word_count": len(extracted_full.split()),
@@ -117,25 +324,25 @@ def ocr_single(filepath, filename):
 
     elif filename.lower().endswith('.pdf'):
         pages = convert_from_path(filepath, dpi=200, poppler_path=POPPLER_PATH)
-        for i, page in enumerate(pages, start=1):
-            page_img = os.path.join(UPLOAD_FOLDER, f"{os.path.splitext(filename)[0]}_hal{i}.jpg")
-            page.save(page_img, "JPEG")
 
-            # # === 🧹 Tahap Penghilangan Noise (Gaussian Blur) untuk halaman PDF ===
-            # img = cv2.imread(page_img)
-            # if img is not None:
-            #     img = cv2.GaussianBlur(img, (3, 3), 0)
-            #     cv2.imwrite(page_img, img)
+        for i, page in enumerate(pages, start=1):
+            page_img = os.path.join(
+                UPLOAD_FOLDER, f"{os.path.splitext(filename)[0]}_hal{i}.jpg"
+            )
+            page.save(page_img, "JPEG")
 
             start = time.time()
             result = reader.readtext(page_img, detail=1)
+
             extracted_full = " ".join([txt for _, txt, _ in result if txt.strip()])
+            raw_text = extracted_full.lower()
+            corrected_text, detected_lang = auto_correct_text(raw_text)
 
             extracted = format_text_by_words(extracted_full, 25)
-            preprocessed = format_text_by_words(extracted_full.lower(), 25)
+            preprocessed = format_text_by_words(raw_text, 25)
 
             confs = [conf for _, _, conf in result]
-            audio = save_tts(extracted_full.lower(), os.path.splitext(filename)[0] + f"_page{i}")
+            audio = save_tts(corrected_text, os.path.splitext(filename)[0] + f"_page{i}")
 
             image_url = "/" + page_img.replace("\\", "/")
 
@@ -143,12 +350,14 @@ def ocr_single(filepath, filename):
                 "page_num": i,
                 "text": extracted,
                 "lower": preprocessed,
+                "corrected": corrected_text,
                 "audio": audio,
                 "image": image_url,
                 "word_count": len(extracted_full.split()),
                 "confidence": (sum(confs) / len(confs)) if confs else 0,
                 "ocr_time": round(time.time() - start, 2)
             })
+
     return ocr_pages
 
 # ====== Route: Buku & Poster (mendukung camera & upload via 'files') ======
