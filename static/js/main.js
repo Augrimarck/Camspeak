@@ -425,25 +425,50 @@ document.addEventListener("DOMContentLoaded", function () {
   let useFrontCamera = true;
   let useTorch = false;
 
+  function getHighResConstraints(facingMode) {
+    return {
+      audio: false,
+      video: {
+        facingMode: { ideal: facingMode },
+
+        // === PRIORITAS RESOLUSI TINGGI ===
+        width:  { ideal: 1920, max: 1920 },
+        height: { ideal: 1080, max: 1080 },
+
+        // === STABILITAS OCR ===
+        frameRate: { ideal: 30, max: 30 }
+      }
+    };
+  }
+
   async function startCamera(facingMode = "user") {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     if (currentStream) stopCamera();
 
     try {
+      // === Coba resolusi tinggi dulu ===
+      currentStream = await navigator.mediaDevices.getUserMedia(
+        getHighResConstraints(facingMode)
+      );
+    } catch (err) {
+      console.warn("Resolusi tinggi gagal, fallback ke default:", err);
+
+      // === Fallback aman ===
       currentStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: facingMode },
         audio: false
       });
-
-      if (video) video.srcObject = currentStream;
-      currentTrack = currentStream.getVideoTracks()[0];
-      const capabilities = currentTrack.getCapabilities();
-      if (flashBtn) flashBtn.disabled = !capabilities.torch;
-    } catch (err) {
-      alert("Tidak bisa mengakses kamera: " + err.message);
     }
-  }
 
+    if (video) video.srcObject = currentStream;
+
+    currentTrack = currentStream.getVideoTracks()[0];
+
+    // === Torch support ===
+    const capabilities = currentTrack.getCapabilities?.() || {};
+    if (flashBtn) flashBtn.disabled = !capabilities.torch;
+  }
+  
   function stopCamera() {
     if (currentStream) {
       currentStream.getTracks().forEach(track => track.stop());
@@ -494,22 +519,58 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // WebRTC: capture
+  // WebRTC: capture dengan Cropping sesuai kotak bidik
   if (captureBtn) {
-    captureBtn.addEventListener("click", () => {
-      if (!video || !canvas) return;
-      const ctx = canvas.getContext("2d");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataURL = canvas.toDataURL("image/png");
-      if (previewPhoto) previewPhoto.src = dataURL;
-      if (previewPhoto) previewPhoto.classList.remove("d-none");
+      captureBtn.addEventListener("click", () => {
+          if (!video || !canvas) return;
 
-      // Hide camera modal, show preview modal
-      if (cameraModal) cameraModal.hide();
-      if (previewModal) setTimeout(() => previewModal.show(), 400);
-    });
+          const ctx = canvas.getContext("2d");
+
+          // 1. Dapatkan ukuran asli video dari hardware
+          const videoWidth = video.videoWidth;
+          const videoHeight = video.videoHeight;
+
+          // 2. Dapatkan ukuran tampilan video di layar (CSS)
+          const displayWidth = video.clientWidth;
+          const displayHeight = video.clientHeight;
+
+          // 3. Tentukan ukuran "Kotak Bidik" (Overlay)
+          // Jika kotak bidik Anda di CSS adalah 80% dari lebar layar:
+          const cropWidthDisplay = displayWidth * 0.8; 
+          const cropHeightDisplay = displayHeight * 0.6; // Sesuaikan dengan CSS Anda
+
+          // 4. Hitung Rasio antara ukuran Asli vs Tampilan
+          const scaleX = videoWidth / displayWidth;
+          const scaleY = videoHeight / displayHeight;
+
+          // 5. Hitung koordinat cropping dalam ukuran asli video
+          // (Menempatkan kotak di tengah-tengah)
+          const sourceX = (displayWidth - cropWidthDisplay) / 2 * scaleX;
+          const sourceY = (displayHeight - cropHeightDisplay) / 2 * scaleY;
+          const sourceWidth = cropWidthDisplay * scaleX;
+          const sourceHeight = cropHeightDisplay * scaleY;
+
+          // 6. Atur ukuran canvas sesuai hasil crop
+          canvas.width = sourceWidth;
+          canvas.height = sourceHeight;
+
+          // 7. Gambar bagian yang dipotong saja ke canvas
+          ctx.drawImage(
+              video,
+              sourceX, sourceY, sourceWidth, sourceHeight, // Bagian asal (crop)
+              0, 0, sourceWidth, sourceHeight              // Bagian tujuan (canvas)
+          );
+
+          const dataURL = canvas.toDataURL("image/png");
+          if (previewPhoto) {
+              previewPhoto.src = dataURL;
+              previewPhoto.classList.remove("d-none");
+          }
+
+          // Sembunyikan modal kamera, tampilkan modal preview
+          if (cameraModal) cameraModal.hide();
+          if (previewModal) setTimeout(() => previewModal.show(), 400);
+      });
   }
 
   // Save photo from preview modal into uploadedFiles
